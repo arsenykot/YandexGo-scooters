@@ -1,0 +1,125 @@
+.app-header {
+  height: var(--header-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 20;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.app-header__left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-header__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-header__logo-img {
+  display: block;
+  height: 22px;
+  width: auto;
+  object-fit: contain;
+  transition: opacity var(--transition), filter var(--transition);
+}
+
+.app-header__service {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  transition: color 0.3s ease;
+}
+
+.app-header__back {
+  width: 40px;
+  height: 40px;
+  margin-left: -8px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text);
+  transition: background var(--transition), color 0.3s ease;
+}
+
+.app-header__back:hover {
+  background: var(--surface-muted);
+}
+
+.app-header__scan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: var(--yandex-yellow);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.app-header__scan:hover {
+  background: var(--yandex-yellow-hover);
+}
+
+.app-header__scan:active {
+  transform: scale(0.98);
+}
+
+.app-header--dark {
+  background: rgba(0, 0, 0, 0.55);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.app-header--dark .app-header__logo-img {
+  filter: brightness(0) invert(1);
+}
+
+.app-header--dark .app-header__service,
+.app-header--dark .app-header__back {
+  color: #fff;
+}
+
+.app-header--dark .app-header__back:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app-header--dark .app-header__service {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (min-width: 900px) {
+  .app-header {
+    padding: 0 24px;
+  }
+
+  .app-header__logo-img {
+    height: 24px;
+  }
+}
+
+@media (max-width: 899px) {
+  .app-header__scan {
+    padding: 10px 14px;
+  }
+
+  .app-header__scan span {
+    display: none;
+  }
+}

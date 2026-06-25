@@ -1,0 +1,257 @@
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.status-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    background-color 0.45s ease,
+    color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.status-banner--animated {
+  animation: bannerIn 0.35s ease both;
+}
+
+@keyframes bannerIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-banner--wait {
+  background: var(--yandex-yellow-soft);
+  color: var(--text);
+}
+
+.status-banner--ride {
+  background: var(--green-bg);
+  color: var(--text);
+}
+
+.status-banner--paused {
+  background: #fff6e6;
+  color: var(--text);
+}
+
+.status-banner__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.upsell-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  margin: 16px 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+
+.row-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.row-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.btn-outline {
+  border: none;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-outline:hover {
+  background: var(--border);
+}
+
+.reserve-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.payment-chip {
+  width: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, #ef3124, #d42018);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.payment-chip__mark {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: Georgia, serif;
+}
+
+.btn-reserve {
+  flex: 1;
+  border: none;
+  background: var(--yandex-yellow);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background var(--transition), transform var(--transition);
+  min-height: 56px;
+  justify-content: center;
+}
+
+.btn-reserve:hover:not(:disabled) {
+  background: var(--yandex-yellow-hover);
+}
+
+.btn-reserve:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.btn-reserve small {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.btn-reserve:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.legal {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 14px 0 0;
+  line-height: 1.5;
+}
+
+.legal .link {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.btn-start {
+  width: 100%;
+  border: none;
+  background: var(--yandex-yellow);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background var(--transition-slow), transform var(--transition);
+  min-height: 52px;
+}
+
+.btn-start:hover:not(:disabled) {
+  background: var(--yandex-yellow-hover);
+}
+
+.btn-start:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.btn-finish {
+  width: 100%;
+  border: none;
+  background: var(--orange-finish);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background var(--transition-slow), opacity var(--transition), transform var(--transition);
+  min-height: 52px;
+}
+
+.btn-finish:hover {
+  opacity: 0.92;
+}
+
+.btn-finish:active {
+  transform: scale(0.99);
+}
+
+.support-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 8px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  transition: color var(--transition);
+}
+
+.support-row:hover {
+  color: var(--text-secondary);
+}
+
+.support-row span:nth-child(2) {
+  flex: 1;
+  text-align: left;
+}
+
+.support-row .chevron {
+  color: var(--text-muted);
+}

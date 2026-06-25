@@ -1,0 +1,68 @@
+.rental-switcher {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+}
+
+.rental-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+.rental-switcher__chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  min-width: 108px;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.rental-switcher__chip:hover {
+  border-color: rgba(45, 181, 93, 0.45);
+}
+
+.rental-switcher__chip--active {
+  border-color: var(--green);
+  background: linear-gradient(135deg, #eefbf3 0%, #fff 100%);
+  box-shadow: 0 0 0 1px rgba(45, 181, 93, 0.15);
+}
+
+.rental-switcher__number {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.rental-switcher__meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rental-switcher__chip--riding.rental-switcher__chip--active {
+  border-color: var(--green);
+}
+
+.rental-switcher__chip--paused.rental-switcher__chip--active {
+  border-color: #e6a700;
+  background: linear-gradient(135deg, #fff9ec 0%, #fff 100%);
+}
+
+.rental-switcher__chip--finish_photo.rental-switcher__chip--active {
+  border-color: var(--yandex-red);
+  background: linear-gradient(135deg, #fff0ee 0%, #fff 100%);
+}

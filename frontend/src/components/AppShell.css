@@ -1,0 +1,17 @@
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.app-shell--fullscreen {
+  background: #000;
+}
+
+.app-shell--map {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}

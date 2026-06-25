@@ -1,0 +1,75 @@
+.scooter-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scooter-card__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.scooter-card__id-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.scooter-number {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.scooter-walk {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.scooter-meta {
+  margin-bottom: 12px;
+}
+
+.badge-range {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.scooter-card__photo {
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.scooter-card__photo img {
+  display: block;
+  width: 124px;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (min-width: 900px) {
+  .scooter-number {
+    font-size: 32px;
+  }
+
+  .scooter-card__photo img {
+    width: 148px;
+  }
+}
