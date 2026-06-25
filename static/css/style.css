@@ -1946,6 +1946,10 @@ a {
   backdrop-filter: blur(4px);
 }
 
+.enter-overlay[hidden] {
+  display: none !important;
+}
+
 .enter-modal {
   width: 100%;
   max-width: 440px;

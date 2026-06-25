@@ -823,7 +823,18 @@
     else navigate(`scooter/${number}`)
   }
 
+  function hideManualEntry() {
+    const overlay = document.getElementById('enter-overlay')
+    if (overlay) overlay.hidden = true
+  }
+
   document.addEventListener('click', (e) => {
+    const overlay = document.getElementById('enter-overlay')
+    if (overlay && !overlay.hidden && e.target === overlay) {
+      hideManualEntry()
+      return
+    }
+
     const btn = e.target.closest('[data-action]')
     if (!btn) return
     const action = btn.dataset.action
@@ -960,8 +971,8 @@
       return
     }
     if (action === 'hide-manual') {
-      const overlay = document.getElementById('enter-overlay')
-      if (overlay) overlay.hidden = true
+      hideManualEntry()
+      return
     }
   })
 
