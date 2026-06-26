@@ -2107,8 +2107,8 @@ a {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(272px, 72vw);
-  height: min(272px, 72vw);
+  width: min(94vw, 520px);
+  height: min(58vw, 300px);
   transform: translate(-50%, -52%);
   border: 2px solid rgba(255, 255, 255, 0.85);
   border-radius: var(--radius-xl);
@@ -2180,6 +2180,13 @@ a {
 
 .qr-round-btn:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.qr-round-btn--active {
+  background: rgba(255, 204, 0, 0.28);
+  border-color: rgba(255, 204, 0, 0.55);
+  color: var(--yandex-yellow);
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.35);
 }
 
 .qr-enter-btn {

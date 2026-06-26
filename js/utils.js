@@ -15,7 +15,8 @@
   const COPY = {
     demoNote: 'Kickshare simulation',
     stubFeature: 'Available in the full Yandex Go app',
-    scanHint: 'Scan the QR code on the handlebars',
+    scanHint: 'Point at the QR on the handlebars — hold steady, 15–25 cm away',
+    scanTip: 'Use flash in low light. Demo fleet: HA538P, HA539B…',
     finishHint: 'Park correctly and take a photo to end the ride',
   }
 
@@ -59,15 +60,39 @@
   }
 
   function parseScooterNumberFromQr(text) {
+    if (!text) return null
+    const raw = String(text).trim()
+    if (!raw) return null
+
+    const idMatch = raw.match(/\b([A-Z]{2}\d{3}[A-Z])\b/i)
+    if (idMatch) return idMatch[1].toUpperCase()
+
     try {
-      const url = new URL(text)
-      const number = url.searchParams.get('number')
-      if (number) return number.toUpperCase()
+      const url = new URL(raw)
+      const paramKeys = ['number', 'id', 'scooter', 'scooter_id', 'scooterId', 'device_id', 'deviceId', 'vehicle_id', 'vehicleId', 'imei']
+      for (const key of paramKeys) {
+        const value = url.searchParams.get(key)
+        if (!value) continue
+        const fromParam = value.match(/\b([A-Z]{2}\d{3}[A-Z])\b/i)
+        if (fromParam) return fromParam[1].toUpperCase()
+        const cleaned = value.trim().toUpperCase()
+        if (/^[A-Z0-9-]{4,16}$/.test(cleaned)) return cleaned
+      }
+
+      const pathParts = url.pathname.split('/').filter(Boolean)
+      for (let i = pathParts.length - 1; i >= 0; i -= 1) {
+        const part = decodeURIComponent(pathParts[i])
+        const fromPath = part.match(/\b([A-Z]{2}\d{3}[A-Z])\b/i)
+        if (fromPath) return fromPath[1].toUpperCase()
+        const cleaned = part.trim().toUpperCase()
+        if (/^[A-Z0-9-]{4,16}$/.test(cleaned)) return cleaned
+      }
     } catch {
       // not a URL
     }
-    const trimmed = text.trim().toUpperCase()
-    if (/^[A-Z]{2}\d{3}[A-Z]$/.test(trimmed)) return trimmed
+
+    const upper = raw.toUpperCase()
+    if (/^[A-Z]{2}\d{3}[A-Z]$/.test(upper)) return upper
     return null
   }
 
@@ -96,7 +121,25 @@
     playRideDong('beep')
   }
 
+  const SCOOTER_UNLOCKED_SRC = 'assets/scooter-unlocked.mp3?v=2'
+
   let sharedAudioCtx = null
+  let scooterUnlockedAudio = null
+  let scooterUnlockedLoadedSrc = ''
+
+  function playScooterUnlocked() {
+    try {
+      if (!scooterUnlockedAudio || scooterUnlockedLoadedSrc !== SCOOTER_UNLOCKED_SRC) {
+        scooterUnlockedAudio = new Audio(SCOOTER_UNLOCKED_SRC)
+        scooterUnlockedAudio.preload = 'auto'
+        scooterUnlockedLoadedSrc = SCOOTER_UNLOCKED_SRC
+      }
+      scooterUnlockedAudio.currentTime = 0
+      void scooterUnlockedAudio.play()
+    } catch {
+      // audio not available
+    }
+  }
 
   function getAudioContext() {
     if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
@@ -118,6 +161,10 @@
   }
 
   function playRideDong(kind) {
+    if (kind === 'start') {
+      playScooterUnlocked()
+      return
+    }
     try {
       const ctx = getAudioContext()
       const t = ctx.currentTime
@@ -131,10 +178,6 @@
         playTone(ctx, { freq: 440, start: t, duration: 0.08, volume: 0.11 })
         playTone(ctx, { freq: 660, start: t + 0.09, duration: 0.1, volume: 0.12 })
         playTone(ctx, { freq: 880, start: t + 0.19, duration: 0.14, volume: 0.13 })
-      } else if (kind === 'start') {
-        playTone(ctx, { freq: 480, start: t, duration: 0.1, volume: 0.12 })
-        playTone(ctx, { freq: 720, start: t + 0.11, duration: 0.12, volume: 0.13 })
-        playTone(ctx, { freq: 960, start: t + 0.24, duration: 0.2, volume: 0.14 })
       } else if (kind === 'beep') {
         playTone(ctx, { freq: 820, start: t, duration: 0.62, volume: 0.13, type: 'square' })
         playTone(ctx, { freq: 620, start: t + 0.04, duration: 0.58, volume: 0.07, type: 'triangle' })
@@ -277,6 +320,31 @@
     return candidates
   }
 
+  function getQrScannerConfig() {
+    const config = {
+      fps: 20,
+      qrbox: (width, height) => ({
+        width: Math.floor(width * 0.94),
+        height: Math.floor(height * 0.76),
+      }),
+      disableFlip: false,
+      experimentalFeatures: {
+        useBarCodeDetectorIfSupported: true,
+      },
+      videoConstraints: {
+        facingMode: { ideal: 'environment' },
+        width: { min: 640, ideal: 1920, max: 2560 },
+        height: { min: 480, ideal: 1080, max: 1440 },
+      },
+    }
+
+    if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+      config.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE]
+    }
+
+    return config
+  }
+
   function profileInitials(name) {
     const parts = (name || '').trim().split(/\s+/).filter(Boolean)
     if (!parts.length) return '?'
@@ -319,5 +387,6 @@
     pickBackCameraId,
     resolveBackCameraDeviceId,
     buildQrCameraCandidates,
+    getQrScannerConfig,
   }
 })(window)

@@ -7,7 +7,7 @@
     parseScooterNumberFromQr, walkMinutesFromCenter, batteryTone,
     isRented, isPackageTariff, playBeep, playRideDong, escapeHtml, profileInitials, AVATAR_COLOR_OPTIONS,
     cameraErrorMessage, isCameraSupported,
-    getCameraStream, pickBackCameraId, resolveBackCameraDeviceId, buildQrCameraCandidates,
+    getCameraStream, pickBackCameraId, resolveBackCameraDeviceId, buildQrCameraCandidates, getQrScannerConfig,
   } = window.utils
 
   const LOGO = 'assets/YandexGoLogo.png'
@@ -46,6 +46,7 @@
     pendingRideFeedback: null,
     qrScanner: null,
     cameraStream: null,
+    qrTorchOn: false,
     qrInitToken: 0,
     qrScanHandled: false,
     renderEpoch: 0,
@@ -1079,7 +1080,7 @@
           ${floatingBackBtnHtml({ variant: 'overlay' })}
           <div class="qr-body">
             <p class="qr-hint">${COPY.scanHint}</p>
-            <p class="qr-zone">${ZONE.name} fleet</p>
+            <p class="qr-zone">${ZONE.name} fleet · ${COPY.scanTip}</p>
             <div class="qr-viewport">
               <div id="qr-reader" class="qr-reader"></div>
               <div class="qr-frame" aria-hidden="true"></div>
@@ -1087,7 +1088,7 @@
             <p id="qr-error" class="qr-error" hidden></p>
             <div class="qr-controls">
               <button type="button" class="qr-enter-btn qr-enter-btn--prominent" data-action="show-manual">Enter number manually</button>
-              <button type="button" class="qr-round-btn" aria-label="Flashlight">${ICONS.flashlight}</button>
+              <button type="button" class="qr-round-btn" data-action="toggle-qr-torch" aria-label="Flashlight" aria-pressed="false">${ICONS.flashlight}</button>
             </div>
           </div>
         </div>
@@ -1212,6 +1213,7 @@
   async function cleanupPageResources() {
     state.qrInitToken += 1
     state.qrScanHandled = false
+    state.qrTorchOn = false
 
     const scanner = state.qrScanner
     state.qrScanner = null
@@ -1265,14 +1267,9 @@
     const scanner = new Html5Qrcode('qr-reader', { verbose: false })
     state.qrScanner = scanner
     state.qrScanHandled = false
+    state.qrTorchOn = false
 
-    const config = {
-      fps: 10,
-      qrbox: (w, h) => {
-        const size = Math.min(w, h, 280) * 0.75
-        return { width: size, height: size }
-      },
-    }
+    const config = getQrScannerConfig()
 
     const onScan = async (decoded) => {
       if (state.qrScanHandled) return
@@ -1315,6 +1312,32 @@
       state.qrScanner = null
       showError(cameraErrorMessage(e))
       stopAllVideoElements()
+    }
+  }
+
+  async function toggleQrTorch() {
+    const scanner = state.qrScanner
+    if (!scanner) return
+
+    try {
+      const caps = scanner.getRunningTrackCameraCapabilities()
+      if (!caps || !caps.torch) {
+        showToast('Flash not available on this device')
+        return
+      }
+
+      state.qrTorchOn = !state.qrTorchOn
+      await scanner.applyVideoConstraints({
+        advanced: [{ torch: state.qrTorchOn }],
+      })
+
+      const btn = document.querySelector('[data-action="toggle-qr-torch"]')
+      if (btn) {
+        btn.classList.toggle('qr-round-btn--active', state.qrTorchOn)
+        btn.setAttribute('aria-pressed', state.qrTorchOn ? 'true' : 'false')
+      }
+    } catch {
+      showToast('Could not toggle flash')
     }
   }
 
@@ -1771,6 +1794,10 @@
     if (action === 'show-manual') {
       const overlay = document.getElementById('enter-overlay')
       if (overlay) { overlay.hidden = false; overlay.querySelector('input')?.focus() }
+      return
+    }
+    if (action === 'toggle-qr-torch') {
+      void toggleQrTorch()
       return
     }
     if (action === 'apply-avatar-crop') {
