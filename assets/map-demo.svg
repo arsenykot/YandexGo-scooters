@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f4f0"/>
+      <stop offset="100%" stop-color="#ebe7e0"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b8dce8"/>
+      <stop offset="100%" stop-color="#9ec9db"/>
+    </linearGradient>
+    <linearGradient id="park" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c8e6b8"/>
+      <stop offset="100%" stop-color="#b2d8a4"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="600" height="900" fill="url(#sky)"/>
+
+  <!-- Parks -->
+  <path fill="url(#park)" d="M0 0h220v180H0z"/>
+  <path fill="#b8ddb0" d="M0 0h220v180c-40-20-90-30-140-25S20 40 0 0z" opacity=".45"/>
+  <path fill="url(#park)" d="M380 0h220v140H380z"/>
+  <ellipse cx="120" cy="120" rx="70" ry="48" fill="#aed6a2" opacity=".35"/>
+  <path fill="url(#park)" d="M0 640c80 40 160 55 260 50 90-5 180-35 340-90v300H0z"/>
+  <path fill="#a8d49c" d="M40 700c60 25 130 35 200 30s150-25 220-55" stroke="#8fc486" stroke-width="3" opacity=".5"/>
+
+  <!-- Water -->
+  <path fill="url(#water)" d="M430 520c70-10 120 20 170 80s30 130-20 170-110 40-150-10-40-100 0-240z"/>
+  <path fill="#fff" opacity=".18" d="M470 580c30 15 55 45 60 75"/>
+
+  <!-- Building blocks -->
+  <g fill="#ddd8d0">
+    <rect x="24" y="210" width="52" height="38" rx="2"/>
+    <rect x="84" y="198" width="44" height="52" rx="2"/>
+    <rect x="136" y="220" width="60" height="34" rx="2"/>
+    <rect x="28" y="268" width="70" height="44" rx="2"/>
+    <rect x="108" y="278" width="48" height="56" rx="2"/>
+    <rect x="168" y="252" width="38" height="42" rx="2"/>
+    <rect x="232" y="188" width="56" height="48" rx="2"/>
+    <rect x="296" y="200" width="64" height="36" rx="2"/>
+    <rect x="368" y="168" width="48" height="58" rx="2"/>
+    <rect x="424" y="188" width="72" height="40" rx="2"/>
+    <rect x="508" y="176" width="56" height="52" rx="2"/>
+    <rect x="248" y="252" width="44" height="60" rx="2"/>
+    <rect x="304" y="260" width="58" height="44" rx="2"/>
+    <rect x="372" y="248" width="50" height="54" rx="2"/>
+    <rect x="432" y="244" width="66" height="38" rx="2"/>
+    <rect x="508" y="256" width="54" height="48" rx="2"/>
+    <rect x="20" y="348" width="58" height="46" rx="2"/>
+    <rect x="88" y="360" width="72" height="34" rx="2"/>
+    <rect x="170" y="340" width="46" height="58" rx="2"/>
+    <rect x="228" y="352" width="54" height="42" rx="2"/>
+    <rect x="292" y="336" width="62" height="50" rx="2"/>
+    <rect x="364" y="344" width="48" height="44" rx="2"/>
+    <rect x="420" y="328" width="70" height="52" rx="2"/>
+    <rect x="500" y="340" width="58" height="46" rx="2"/>
+    <rect x="24" y="420" width="64" height="40" rx="2"/>
+    <rect x="96" y="408" width="50" height="54" rx="2"/>
+    <rect x="156" y="424" width="56" height="36" rx="2"/>
+    <rect x="340" y="412" width="52" height="48" rx="2"/>
+    <rect x="400" y="400" width="44" height="56" rx="2"/>
+    <rect x="20" y="500" width="48" height="52" rx="2"/>
+    <rect x="78" y="488" width="62" height="40" rx="2"/>
+    <rect x="150" y="504" width="54" height="46" rx="2"/>
+    <rect x="220" y="492" width="44" height="58" rx="2"/>
+    <rect x="276" y="508" width="68" height="36" rx="2"/>
+    <rect x="354" y="496" width="50" height="50" rx="2"/>
+    <rect x="24" y="580" width="56" height="44" rx="2"/>
+    <rect x="92" y="568" width="64" height="52" rx="2"/>
+    <rect x="168" y="584" width="48" height="38" rx="2"/>
+    <rect x="228" y="572" width="58" height="48" rx="2"/>
+    <rect x="296" y="588" width="44" height="40" rx="2"/>
+    <rect x="348" y="576" width="62" height="46" rx="2"/>
+    <rect x="48" y="720" width="54" height="42" rx="2"/>
+    <rect x="112" y="708" width="68" height="50" rx="2"/>
+    <rect x="190" y="724" width="46" height="38" rx="2"/>
+    <rect x="248" y="712" width="58" height="44" rx="2"/>
+    <rect x="316" y="728" width="52" height="36" rx="2"/>
+    <rect x="378" y="716" width="64" height="48" rx="2"/>
+    <rect x="452" y="724" width="48" height="40" rx="2"/>
+    <rect x="508" y="708" width="56" height="52" rx="2"/>
+    <rect x="72" y="792" width="60" height="44" rx="2"/>
+    <rect x="142" y="780" width="52" height="50" rx="2"/>
+    <rect x="204" y="796" width="70" height="38" rx="2"/>
+    <rect x="284" y="784" width="48" height="46" rx="2"/>
+    <rect x="342" y="800" width="58" height="40" rx="2"/>
+    <rect x="410" y="788" width="54" height="48" rx="2"/>
+    <rect x="474" y="796" width="66" height="36" rx="2"/>
+  </g>
+  <g fill="#e4e0d8" opacity=".85">
+    <rect x="520" y="420" width="56" height="44" rx="2"/>
+    <rect x="520" y="480" width="48" height="52" rx="2"/>
+    <rect x="512" y="548" width="62" height="40" rx="2"/>
+    <rect x="528" y="608" width="52" height="48" rx="2"/>
+    <rect x="520" y="668" width="58" height="42" rx="2"/>
+    <rect x="532" y="728" width="44" height="50" rx="2"/>
+    <rect x="524" y="792" width="56" height="44" rx="2"/>
+  </g>
+
+  <!-- Minor roads (under major) -->
+  <g stroke="#f5f3ef" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 320h600"/>
+    <path d="M0 560h380"/>
+    <path d="M0 680h320"/>
+    <path d="M0 820h600"/>
+    <path d="M140 180v420"/>
+    <path d="M220 160v500"/>
+    <path d="M380 160v360"/>
+    <path d="M460 160v280"/>
+    <path d="M540 140v560"/>
+  </g>
+
+  <!-- Major roads -->
+  <g stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 460h600"/>
+    <path d="M300 0v900"/>
+    <path d="M0 740h600"/>
+  </g>
+  <g stroke="#d5d1ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M0 460h600"/>
+    <path d="M300 0v900"/>
+    <path d="M0 740h600"/>
+  </g>
+
+  <!-- Boulevard center lines -->
+  <g stroke="#f0c94a" stroke-width="2" stroke-dasharray="10 14" opacity=".55">
+    <path d="M0 460h600"/>
+    <path d="M300 0v900"/>
+  </g>
+
+  <!-- Roundabout -->
+  <circle cx="300" cy="460" r="34" fill="#fff" stroke="#d5d1ca" stroke-width="2"/>
+  <circle cx="300" cy="460" r="22" fill="#f4f2ef"/>
+
+  <!-- Pedestrian paths -->
+  <g stroke="#e8e4dc" stroke-width="5" stroke-dasharray="4 8" opacity=".7">
+    <path d="M120 640c40-20 80-28 120-20"/>
+    <path d="M180 760c60 10 120 6 180-14"/>
+  </g>
+</svg>

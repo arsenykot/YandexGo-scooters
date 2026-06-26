@@ -24,6 +24,65 @@
   ]
 
   const HISTORY_KEY = 'yandexgo_scooter_history'
+  const WALLET_KEY = 'yandexgo_scooter_wallet'
+  const PROFILE_KEY = 'yandexgo_scooter_profile'
+  const STORAGE_PREFIX = 'yandexgo_scooter_'
+
+  const DEFAULT_PROFILE = {
+    name: 'Demo rider',
+    city: 'Demo zone',
+    avatar_color: 'yellow',
+    avatar_url: '',
+  }
+
+  const AVATAR_COLORS = new Set(['yellow', 'coral', 'blue', 'green', 'purple', 'slate'])
+
+  function normalizeAvatarUrl(value) {
+    if (typeof value !== 'string') return ''
+    const url = value.trim()
+    if (!url.startsWith('data:image/')) return ''
+    if (url.length > 400000) return ''
+    return url
+  }
+
+  function loadProfile() {
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY)
+      if (!raw) return { ...DEFAULT_PROFILE }
+      const data = JSON.parse(raw)
+      const name = typeof data.name === 'string' ? data.name.trim() : ''
+      const color = typeof data.avatar_color === 'string' ? data.avatar_color : DEFAULT_PROFILE.avatar_color
+      return {
+        name: name || DEFAULT_PROFILE.name,
+        city: typeof data.city === 'string' && data.city.trim() ? data.city.trim() : DEFAULT_PROFILE.city,
+        avatar_color: AVATAR_COLORS.has(color) ? color : DEFAULT_PROFILE.avatar_color,
+        avatar_url: normalizeAvatarUrl(data.avatar_url),
+      }
+    } catch {
+      return { ...DEFAULT_PROFILE }
+    }
+  }
+
+  function saveProfile(profile) {
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  function clearAllDemoStorage() {
+    try {
+      const keys = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith(STORAGE_PREFIX)) keys.push(key)
+      }
+      for (const key of keys) localStorage.removeItem(key)
+    } catch {
+      // storage unavailable
+    }
+  }
 
   function loadHistory() {
     try {
@@ -37,6 +96,28 @@
   function saveHistory(entries) {
     try {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(entries))
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  function loadWalletSeconds() {
+    try {
+      const raw = localStorage.getItem(WALLET_KEY)
+      if (!raw) return 0
+      const data = JSON.parse(raw)
+      const seconds = Number(data.prepaid_seconds)
+      return Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0
+    } catch {
+      return 0
+    }
+  }
+
+  function saveWalletSeconds(prepaidSeconds) {
+    try {
+      localStorage.setItem(WALLET_KEY, JSON.stringify({
+        prepaid_seconds: Math.max(0, Math.floor(prepaidSeconds)),
+      }))
     } catch {
       // storage unavailable
     }
@@ -66,8 +147,29 @@
     constructor() {
       this.scooters = seedScooters()
       this.sessions = {}
-      this.prepaid_seconds = 0
+      this.prepaid_seconds = loadWalletSeconds()
       this.history = loadHistory()
+      this.profile = loadProfile()
+    }
+
+    getProfile() {
+      return { ...this.profile }
+    }
+
+    updateProfile(updates) {
+      const name = (updates.name || '').trim()
+      if (!name) throw new StoreError(400, 'Enter your name')
+      if (name.length > 40) throw new StoreError(400, 'Name is too long')
+      const city = (updates.city || '').trim()
+      const color = typeof updates.avatar_color === 'string' ? updates.avatar_color : DEFAULT_PROFILE.avatar_color
+      this.profile = {
+        name,
+        city: city || DEFAULT_PROFILE.city,
+        avatar_color: AVATAR_COLORS.has(color) ? color : DEFAULT_PROFILE.avatar_color,
+        avatar_url: normalizeAvatarUrl(updates.avatar_url),
+      }
+      saveProfile(this.profile)
+      return { ...this.profile }
     }
 
     getWallet() {
@@ -82,6 +184,7 @@
       const [minutes, price] = PACKAGE_TARIFFS[tariff]
       const addedSeconds = minutes * 60
       this.prepaid_seconds += addedSeconds
+      saveWalletSeconds(this.prepaid_seconds)
       const result = {
         tariff,
         minutes_added: minutes,
@@ -95,6 +198,7 @@
         tariff,
         minutes_added: minutes,
         price_rub: price,
+        balance_after_minutes: Math.floor(this.prepaid_seconds / 60),
       })
       return result
     }
@@ -153,10 +257,16 @@
     reset() {
       this.scooters = seedScooters()
       this.sessions = {}
-      this.prepaid_seconds = 0
-      this.history = []
-      saveHistory([])
+      clearAllDemoStorage()
+      this.prepaid_seconds = loadWalletSeconds()
+      this.history = loadHistory()
+      this.profile = loadProfile()
       return { status: 'reset' }
+    }
+
+    getHistoryEntry(id) {
+      if (!id) return null
+      return this.history.find((entry) => entry.id === id) || null
     }
 
     getHistory() {
@@ -310,6 +420,7 @@
         prepaid_minutes_used: Math.floor(prepaidUsed / 60),
       }
       this.prepaid_seconds = Math.max(0, this.prepaid_seconds - billable)
+      saveWalletSeconds(this.prepaid_seconds)
       sess.accumulated_riding_seconds = ridingSeconds
       this._releaseScooter(sess)
       delete this.sessions[sess.scooter_id]
@@ -325,6 +436,12 @@
       const sess = this._sessionForNumber(number)
       if (!RENTED_STATUSES.has(sess.status)) throw new StoreError(400, 'Scooter is not rented')
       return { message: 'Beep sent' }
+    }
+
+    unlock(number) {
+      const sess = this._sessionForNumber(number)
+      if (!RENTED_STATUSES.has(sess.status)) throw new StoreError(400, 'Scooter is not active')
+      return { message: 'Unlocked', scooter_number: this._getScooterById(sess.scooter_id).number }
     }
 
     _releaseScooter(sess) {
