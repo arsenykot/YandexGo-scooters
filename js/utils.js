@@ -262,14 +262,48 @@
       .replace(/"/g, '&quot;')
   }
 
+  function isCameraPermissionError(err) {
+    const name = err && err.name
+    return name === 'NotAllowedError'
+      || name === 'PermissionDeniedError'
+      || Boolean(err && err._needsGesture)
+  }
+
+  async function queryCameraPermissionState() {
+    if (!navigator.permissions || typeof navigator.permissions.query !== 'function') return 'unknown'
+    try {
+      const status = await navigator.permissions.query({ name: 'camera' })
+      return status.state
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  function hasPendingCameraRequest() {
+    return Boolean(pendingScanStream || pendingScanStreamPromise)
+  }
+
+  function cameraPermissionPromptMessage(state) {
+    if (!isCameraSupported()) {
+      return 'Camera needs HTTPS or localhost. On this phone open http://127.0.0.1:8080 (not a Wi‑Fi IP).'
+    }
+    if (state === 'denied') {
+      return 'Camera is blocked. Tap «Allow camera» to try again, or enable camera for this site in browser settings.'
+    }
+    return 'Tap «Allow camera» — the browser will ask for permission.'
+  }
+
   function cameraErrorMessage(err) {
     if (!isCameraSupported()) {
       return 'Camera needs HTTPS or localhost. On phone use http://127.0.0.1:8080 (same device) or enable HTTPS. You can enter the number manually.'
     }
+    if (err && err._needsGesture) {
+      return cameraPermissionPromptMessage('prompt')
+    }
     const name = err && err.name
     const msg = err && err.message ? String(err.message) : ''
     if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-      return 'Camera permission denied. Allow camera access or enter the number manually.'
+      return cameraPermissionPromptMessage('denied')
     }
     if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
       return 'No camera found on this device.'
@@ -325,9 +359,9 @@
   let pendingScanStream = null
   let pendingScanStreamPromise = null
 
-  /** Call synchronously from a click/tap handler before navigating to scan. */
-  function reserveCameraStreamOnGesture() {
-    if (!isCameraSupported()) return
+  /** Call synchronously from a click/tap — starts a fresh permission request. */
+  function requestCameraStreamOnGesture() {
+    if (!isCameraSupported()) return null
     releasePendingCameraStream()
     pendingScanStreamPromise = getCameraStream()
       .then((stream) => {
@@ -336,8 +370,14 @@
       })
       .catch((err) => {
         pendingScanStreamPromise = null
+        pendingScanStream = null
         throw err
       })
+    return pendingScanStreamPromise
+  }
+
+  function reserveCameraStreamOnGesture() {
+    requestCameraStreamOnGesture()
   }
 
   function releasePendingCameraStream() {
@@ -348,22 +388,35 @@
     pendingScanStreamPromise = null
   }
 
-  async function getCameraStreamForScan() {
+  async function getCameraStreamForScan(options = {}) {
+    const { requireGesture = false } = options
+
     if (pendingScanStream) {
       const stream = pendingScanStream
       pendingScanStream = null
       pendingScanStreamPromise = null
       return stream
     }
+
     if (pendingScanStreamPromise) {
-      try {
-        return await pendingScanStreamPromise
-      } finally {
-        pendingScanStream = null
-        pendingScanStreamPromise = null
-      }
+      return await pendingScanStreamPromise
     }
-    return getCameraStream()
+
+    if (requireGesture) {
+      const err = new DOMException('Camera requires a user gesture', 'NotAllowedError')
+      err._needsGesture = true
+      throw err
+    }
+
+    const permission = await queryCameraPermissionState()
+    if (permission === 'granted') {
+      return getCameraStream()
+    }
+
+    const err = new DOMException('Camera requires a user gesture', 'NotAllowedError')
+    err._needsGesture = true
+    if (permission === 'denied') err._permissionDenied = true
+    throw err
   }
 
   function profileInitials(name) {
@@ -405,7 +458,12 @@
     AVATAR_COLOR_OPTIONS,
     cameraErrorMessage,
     isCameraSupported,
+    isCameraPermissionError,
+    queryCameraPermissionState,
+    cameraPermissionPromptMessage,
+    hasPendingCameraRequest,
     getCameraStream,
+    requestCameraStreamOnGesture,
     reserveCameraStreamOnGesture,
     releasePendingCameraStream,
     getCameraStreamForScan,

@@ -7,7 +7,8 @@
     parseScooterNumberFromQr, walkMinutesFromCenter, batteryTone,
     isRented, isPackageTariff, playBeep, playRideDong, preloadRideSounds, escapeHtml, profileInitials, AVATAR_COLOR_OPTIONS,
     cameraErrorMessage, isCameraSupported,
-    getCameraStream, reserveCameraStreamOnGesture, releasePendingCameraStream, getCameraStreamForScan,
+    queryCameraPermissionState, cameraPermissionPromptMessage, hasPendingCameraRequest,
+    getCameraStream, requestCameraStreamOnGesture, reserveCameraStreamOnGesture, releasePendingCameraStream, getCameraStreamForScan,
   } = window.utils
 
   const LOGO = 'assets/YandexGoLogo.png'
@@ -1092,6 +1093,11 @@
             <div class="qr-viewport">
               <div id="qr-reader" class="qr-reader"></div>
               <div class="qr-frame" aria-hidden="true"></div>
+              <button type="button" id="qr-start-overlay" class="qr-start-overlay" data-action="start-qr-camera" hidden>
+                <span class="qr-start-overlay__icon">${ICONS.camera}</span>
+                <span class="qr-start-overlay__title">Allow camera</span>
+                <span class="qr-start-overlay__sub">Tap to scan QR code</span>
+              </button>
             </div>
             <p id="qr-error" class="qr-error" hidden></p>
             <button type="button" id="qr-start-btn" class="qr-enter-btn qr-enter-btn--prominent" data-action="start-qr-camera" hidden>Allow camera</button>
@@ -1135,6 +1141,7 @@
                 <button type="button" class="shutter-btn" data-action="complete-ride" data-number="${escapeHtml(number)}" aria-label="Take photo">
                   <span class="shutter-btn__inner"></span>
                 </button>
+                <button type="button" class="finish-skip-btn" id="finish-allow-camera" data-action="start-finish-camera" hidden>Allow camera</button>
                 <button type="button" class="finish-skip-btn" id="finish-skip" data-action="complete-ride" data-number="${escapeHtml(number)}" hidden>Finish without photo (demo)</button>
               </div>
             </div>
@@ -1256,19 +1263,43 @@
     return width > 0 && height > 0
   }
 
+  function showQrCameraPrompt(permissionState) {
+    const errEl = document.getElementById('qr-error')
+    const startBtn = document.getElementById('qr-start-btn')
+    const overlay = document.getElementById('qr-start-overlay')
+    const message = cameraPermissionPromptMessage(permissionState === 'denied' ? 'denied' : 'prompt')
+    if (errEl) {
+      errEl.textContent = message
+      errEl.hidden = false
+    }
+    if (startBtn) startBtn.hidden = false
+    if (overlay) overlay.hidden = false
+  }
+
+  function hideQrCameraPrompt() {
+    const errEl = document.getElementById('qr-error')
+    const startBtn = document.getElementById('qr-start-btn')
+    const overlay = document.getElementById('qr-start-overlay')
+    if (errEl) errEl.hidden = true
+    if (startBtn) startBtn.hidden = true
+    if (overlay) overlay.hidden = true
+  }
+
   async function initQrScanner() {
     const initToken = state.qrInitToken
     if (initToken !== state.qrInitToken) return
     if (parseRoute().page !== 'scan') return
 
-    const errEl = document.getElementById('qr-error')
     const showError = (message) => {
+      const errEl = document.getElementById('qr-error')
       if (errEl) {
         errEl.textContent = message
         errEl.hidden = false
       }
       const startBtn = document.getElementById('qr-start-btn')
+      const overlay = document.getElementById('qr-start-overlay')
       if (startBtn) startBtn.hidden = false
+      if (overlay) overlay.hidden = false
     }
 
     if (!window.qrScanner || typeof window.qrScanner.createLiveQrScanner !== 'function') {
@@ -1286,6 +1317,14 @@
     if (!(await waitForQrReaderReady())) {
       showError('Scanner view is not ready. Reload the page or enter the number manually.')
       return
+    }
+
+    if (!hasPendingCameraRequest()) {
+      const permission = await queryCameraPermissionState()
+      if (permission !== 'granted') {
+        showQrCameraPrompt(permission)
+        return
+      }
     }
 
     state.qrScanHandled = false
@@ -1313,12 +1352,13 @@
       controller.stop()
       return
     }
-    if (!controller.getVideoTrack || !controller.getVideoTrack()) return
+    if (!controller.getVideoTrack || !controller.getVideoTrack()) {
+      const permission = await queryCameraPermissionState()
+      showQrCameraPrompt(permission)
+      return
+    }
 
-    const startBtn = document.getElementById('qr-start-btn')
-    if (startBtn) startBtn.hidden = true
-    if (errEl) errEl.hidden = true
-
+    hideQrCameraPrompt()
     state.qrScanner = controller
   }
 
@@ -1355,12 +1395,24 @@
     const video = document.getElementById('finish-video')
     const msg = document.getElementById('finish-message')
     const skip = document.getElementById('finish-skip')
+    const allow = document.getElementById('finish-allow-camera')
     if (!video) return
 
     if (!isCameraSupported()) {
       if (msg) msg.textContent = 'Camera unavailable in browser — finish the ride in demo mode'
+      if (allow) allow.hidden = true
       if (skip) skip.hidden = false
       return
+    }
+
+    if (!hasPendingCameraRequest()) {
+      const permission = await queryCameraPermissionState()
+      if (permission !== 'granted') {
+        if (msg) msg.textContent = cameraPermissionPromptMessage(permission === 'denied' ? 'denied' : 'prompt')
+        if (allow) allow.hidden = false
+        if (skip) skip.hidden = false
+        return
+      }
     }
 
     try {
@@ -1373,8 +1425,11 @@
       video.srcObject = stream
       await video.play().catch(() => {})
       video.classList.add('finish-video--live')
+      if (allow) allow.hidden = true
+      if (skip) skip.hidden = true
     } catch (e) {
       if (msg) msg.textContent = `${cameraErrorMessage(e)} — you can still finish the ride in demo mode`
+      if (allow) allow.hidden = false
       if (skip) skip.hidden = false
     }
   }
@@ -1647,12 +1702,17 @@
     const number = btn.dataset.number
 
     if (action === 'start-qr-camera') {
-      reserveCameraStreamOnGesture()
+      requestCameraStreamOnGesture()
       void cleanupPageResources({ nextPage: 'scan' }).then(() => initQrScanner())
       return
     }
+    if (action === 'start-finish-camera') {
+      requestCameraStreamOnGesture()
+      void initFinishCamera()
+      return
+    }
     if (action === 'navigate') {
-      if (btn.dataset.path === 'scan') reserveCameraStreamOnGesture()
+      if (btn.dataset.path === 'scan') requestCameraStreamOnGesture()
       preloadRideSounds()
       navigate(btn.dataset.path)
       return
@@ -1769,7 +1829,7 @@
     }
     if (action === 'finish') {
       state.confirmModal = null
-      reserveCameraStreamOnGesture()
+      requestCameraStreamOnGesture()
       try {
         apiCall(() => store.finish(number))
         rideActionSound('finish')
