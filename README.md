@@ -43,7 +43,7 @@ Open: **http://127.0.0.1:8080**
 - Map with scooter markers
 - Reserve / start / pause / finish ride flow
 - Minute packages and wallet balance
-- QR scanner (via CDN `html5-qrcode`)
+- QR scanner (native camera + BarcodeDetector / jsQR)
 - Finish photo screen with camera
 - Multiple simultaneous rentals
 
@@ -53,12 +53,8 @@ Tap **Reset demo** on the main screen.
 
 ## Troubleshooting
 
-**Camera not working** — make sure you use `python -m http.server`, not `file://`.
+**Camera not working** — open via `http://127.0.0.1:8080` (not `file://` and not `http://192.168.x.x` on most phones). Allow camera permission when prompted.
 
-**QR library failed** — need internet on first load (CDN). Use manual number entry as fallback.
+**QR library failed** — need internet on first load (jsQR from CDN). Use manual number entry as fallback.
 
 **Page not updating timers** — timers refresh every second automatically on home and scooter screens.
-
-## React + FastAPI version
-
-The previous full-stack implementation is kept in [`react-fastapi/`](react-fastapi/) for reference.

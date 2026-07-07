@@ -59,13 +59,42 @@
     return TARIFF_LABELS[tariff] || tariff
   }
 
+  function normalizeScooterToken(value) {
+    if (!value) return null
+    const compact = String(value).trim().replace(/[\s_-]+/g, '').toUpperCase()
+    if (/^[A-Z]{2}\d{3}[A-Z]$/.test(compact)) return compact
+    return null
+  }
+
   function parseScooterNumberFromQr(text) {
     if (!text) return null
     const raw = String(text).trim()
     if (!raw) return null
 
-    const idMatch = raw.match(/\b([A-Z]{2}\d{3}[A-Z])\b/i)
-    if (idMatch) return idMatch[1].toUpperCase()
+    const direct = normalizeScooterToken(raw)
+    if (direct) return direct
+
+    const idMatch = raw.match(/([A-Z]{2})\s*[-_.]?\s*(\d{3})\s*[-_.]?\s*([A-Z])/i)
+    if (idMatch) {
+      return `${idMatch[1]}${idMatch[2]}${idMatch[3]}`.toUpperCase()
+    }
+
+    if (raw.startsWith('{') || raw.startsWith('[')) {
+      try {
+        const data = JSON.parse(raw)
+        const keys = ['number', 'scooter', 'scooter_id', 'scooterId', 'id', 'device_id', 'deviceId']
+        for (const key of keys) {
+          const fromJson = normalizeScooterToken(data && data[key])
+          if (fromJson) return fromJson
+        }
+      } catch {
+        // not JSON
+      }
+    }
+
+    const colonTail = raw.split(':').pop()
+    const fromColon = normalizeScooterToken(colonTail)
+    if (fromColon) return fromColon
 
     try {
       const url = new URL(raw)
@@ -73,8 +102,8 @@
       for (const key of paramKeys) {
         const value = url.searchParams.get(key)
         if (!value) continue
-        const fromParam = value.match(/\b([A-Z]{2}\d{3}[A-Z])\b/i)
-        if (fromParam) return fromParam[1].toUpperCase()
+        const fromParam = normalizeScooterToken(value)
+        if (fromParam) return fromParam
         const cleaned = value.trim().toUpperCase()
         if (/^[A-Z0-9-]{4,16}$/.test(cleaned)) return cleaned
       }
@@ -82,8 +111,8 @@
       const pathParts = url.pathname.split('/').filter(Boolean)
       for (let i = pathParts.length - 1; i >= 0; i -= 1) {
         const part = decodeURIComponent(pathParts[i])
-        const fromPath = part.match(/\b([A-Z]{2}\d{3}[A-Z])\b/i)
-        if (fromPath) return fromPath[1].toUpperCase()
+        const fromPath = normalizeScooterToken(part)
+        if (fromPath) return fromPath
         const cleaned = part.trim().toUpperCase()
         if (/^[A-Z0-9-]{4,16}$/.test(cleaned)) return cleaned
       }
@@ -91,9 +120,7 @@
       // not a URL
     }
 
-    const upper = raw.toUpperCase()
-    if (/^[A-Z]{2}\d{3}[A-Z]$/.test(upper)) return upper
-    return null
+    return normalizeScooterToken(raw)
   }
 
   function walkMinutesFromCenter(latPct, lngPct) {
@@ -121,30 +148,69 @@
     playRideDong('beep')
   }
 
-  const SCOOTER_UNLOCKED_SRC = 'assets/scooter-unlocked.mp3?v=2'
+  const SCOOTER_UNLOCKED_SRC = 'assets/scooter-unlocked.mp3?v=3'
 
   let sharedAudioCtx = null
-  let scooterUnlockedAudio = null
-  let scooterUnlockedLoadedSrc = ''
+  let unlockedBufferPromise = null
+  let unlockedHtmlAudio = null
 
-  function playScooterUnlocked() {
+  function getAudioContext() {
+    if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    return sharedAudioCtx
+  }
+
+  async function ensureAudioReady() {
+    const ctx = getAudioContext()
+    if (ctx.state === 'suspended') await ctx.resume()
+    return ctx
+  }
+
+  function preloadRideSounds() {
+    if (!unlockedBufferPromise) {
+      unlockedBufferPromise = fetch(SCOOTER_UNLOCKED_SRC)
+        .then((res) => {
+          if (!res.ok) throw new Error('unlock sound fetch failed')
+          return res.arrayBuffer()
+        })
+        .then((buf) => ensureAudioReady().then((ctx) => ctx.decodeAudioData(buf)))
+        .catch(() => null)
+    }
+    if (!unlockedHtmlAudio) {
+      unlockedHtmlAudio = new Audio(SCOOTER_UNLOCKED_SRC)
+      unlockedHtmlAudio.preload = 'auto'
+      unlockedHtmlAudio.load()
+    }
+    return unlockedBufferPromise
+  }
+
+  function playScooterUnlockedHtml() {
     try {
-      if (!scooterUnlockedAudio || scooterUnlockedLoadedSrc !== SCOOTER_UNLOCKED_SRC) {
-        scooterUnlockedAudio = new Audio(SCOOTER_UNLOCKED_SRC)
-        scooterUnlockedAudio.preload = 'auto'
-        scooterUnlockedLoadedSrc = SCOOTER_UNLOCKED_SRC
+      if (!unlockedHtmlAudio) {
+        unlockedHtmlAudio = new Audio(SCOOTER_UNLOCKED_SRC)
+        unlockedHtmlAudio.preload = 'auto'
       }
-      scooterUnlockedAudio.currentTime = 0
-      void scooterUnlockedAudio.play()
+      unlockedHtmlAudio.currentTime = 0
+      void unlockedHtmlAudio.play()
     } catch {
       // audio not available
     }
   }
 
-  function getAudioContext() {
-    if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
-    if (sharedAudioCtx.state === 'suspended') void sharedAudioCtx.resume()
-    return sharedAudioCtx
+  async function playScooterUnlocked() {
+    try {
+      const ctx = await ensureAudioReady()
+      const buffer = unlockedBufferPromise ? await unlockedBufferPromise : await preloadRideSounds()
+      if (!buffer) {
+        playScooterUnlockedHtml()
+        return
+      }
+      const source = ctx.createBufferSource()
+      source.buffer = buffer
+      source.connect(ctx.destination)
+      source.start(0)
+    } catch {
+      playScooterUnlockedHtml()
+    }
   }
 
   function playTone(ctx, { freq, start, duration, volume = 0.12, type = 'sine' }) {
@@ -162,11 +228,10 @@
 
   function playRideDong(kind) {
     if (kind === 'start') {
-      playScooterUnlocked()
+      void playScooterUnlocked()
       return
     }
-    try {
-      const ctx = getAudioContext()
+    void ensureAudioReady().then((ctx) => {
       const t = ctx.currentTime
       if (kind === 'unlock') {
         playTone(ctx, { freq: 620, start: t, duration: 0.09, volume: 0.14 })
@@ -186,9 +251,7 @@
         playTone(ctx, { freq: 620, start: t + 0.12, duration: 0.14, volume: 0.11 })
         playTone(ctx, { freq: 400, start: t + 0.28, duration: 0.22, volume: 0.1, type: 'triangle' })
       }
-    } catch {
-      // audio not available
-    }
+    }).catch(() => {})
   }
 
   function escapeHtml(str) {
@@ -201,7 +264,7 @@
 
   function cameraErrorMessage(err) {
     if (!isCameraSupported()) {
-      return 'Camera needs HTTPS or localhost. On phone use http://127.0.0.1:8000 (same device) or enable HTTPS. You can enter the number manually.'
+      return 'Camera needs HTTPS or localhost. On phone use http://127.0.0.1:8080 (same device) or enable HTTPS. You can enter the number manually.'
     }
     const name = err && err.name
     const msg = err && err.message ? String(err.message) : ''
@@ -214,11 +277,17 @@
     if (name === 'NotReadableError' || name === 'TrackStartError') {
       return 'Camera is busy. Close other apps using it and try again.'
     }
+    if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+      return 'Camera settings not supported on this device. Try reload or enter the number manually.'
+    }
     if (name === 'NotSupportedError' || name === 'SecurityError') {
       return 'Camera blocked: use HTTPS, localhost, or enter the number manually.'
     }
     if (msg.includes('secure') || msg.includes('HTTPS') || msg.includes('Secure')) {
       return 'Camera requires HTTPS or localhost — not a plain http://192.168.x.x URL.'
+    }
+    if (msg && !/html5-qrcode/i.test(msg)) {
+      return msg.length > 140 ? `${msg.slice(0, 137)}…` : msg
     }
     return 'Could not start the camera. Try reload or enter the scooter number.'
   }
@@ -237,6 +306,7 @@
       throw new DOMException('Camera requires a secure context', 'SecurityError')
     }
     const constraintsList = [
+      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
       { video: { facingMode: { ideal: 'environment' } }, audio: false },
       { video: { facingMode: 'user' }, audio: false },
       { video: true, audio: false },
@@ -252,97 +322,48 @@
     throw lastError || new Error('Could not start camera')
   }
 
-  async function pickBackCameraId(getCameras) {
-    const cameras = await getCameras()
-    if (!cameras.length) return undefined
+  let pendingScanStream = null
+  let pendingScanStreamPromise = null
 
-    const back = cameras.find((c) => /back|rear|environment|задн|тыл/i.test(c.label))
-    if (back) return back.id
-
-    const notFront = cameras.filter((c) => !/front|user|selfie|facetime|передн/i.test(c.label))
-    if (notFront.length === 1) return notFront[0].id
-
-    // Unlabeled device list — facingMode is more reliable than guessing by index
-    const hasLabels = cameras.some((c) => c.label && c.label.trim().length > 0)
-    if (!hasLabels) return undefined
-
-    if (notFront.length) return notFront[notFront.length - 1].id
-    return undefined
+  /** Call synchronously from a click/tap handler before navigating to scan. */
+  function reserveCameraStreamOnGesture() {
+    if (!isCameraSupported()) return
+    releasePendingCameraStream()
+    pendingScanStreamPromise = getCameraStream()
+      .then((stream) => {
+        pendingScanStream = stream
+        return stream
+      })
+      .catch((err) => {
+        pendingScanStreamPromise = null
+        throw err
+      })
   }
 
-  async function resolveBackCameraDeviceId() {
-    const stream = await getCameraStream()
-    try {
-      const track = stream.getVideoTracks()[0]
-      return track && track.getSettings().deviceId
-    } finally {
-      stream.getTracks().forEach((t) => t.stop())
-      // Let the OS release the camera before html5-qrcode opens it again (Android)
-      await new Promise((resolve) => setTimeout(resolve, 120))
+  function releasePendingCameraStream() {
+    if (pendingScanStream) {
+      pendingScanStream.getTracks().forEach((track) => track.stop())
+      pendingScanStream = null
     }
+    pendingScanStreamPromise = null
   }
 
-  /** Build ordered camera candidates for html5-qrcode (device id or constraints). */
-  async function buildQrCameraCandidates(getCameras) {
-    const candidates = []
-    const seen = new Set()
-    const add = (value) => {
-      if (value == null) return
-      const key = typeof value === 'string' ? value : JSON.stringify(value)
-      if (seen.has(key)) return
-      seen.add(key)
-      candidates.push(value)
+  async function getCameraStreamForScan() {
+    if (pendingScanStream) {
+      const stream = pendingScanStream
+      pendingScanStream = null
+      pendingScanStreamPromise = null
+      return stream
     }
-
-    try {
-      add(await resolveBackCameraDeviceId())
-    } catch {
-      // same probe as finish-photo — fall through to other options
-    }
-
-    add({ facingMode: 'environment' })
-
-    try {
-      add(await pickBackCameraId(getCameras))
-    } catch {
-      // ignore
-    }
-
-    try {
-      const cameras = await getCameras()
-      for (const cam of cameras) {
-        if (!/front|user|selfie|facetime|передн/i.test(cam.label)) add(cam.id)
+    if (pendingScanStreamPromise) {
+      try {
+        return await pendingScanStreamPromise
+      } finally {
+        pendingScanStream = null
+        pendingScanStreamPromise = null
       }
-    } catch {
-      // ignore
     }
-
-    return candidates
-  }
-
-  function getQrScannerConfig() {
-    const config = {
-      fps: 20,
-      qrbox: (width, height) => ({
-        width: Math.floor(width * 0.94),
-        height: Math.floor(height * 0.76),
-      }),
-      disableFlip: false,
-      experimentalFeatures: {
-        useBarCodeDetectorIfSupported: true,
-      },
-      videoConstraints: {
-        facingMode: { ideal: 'environment' },
-        width: { min: 640, ideal: 1920, max: 2560 },
-        height: { min: 480, ideal: 1080, max: 1440 },
-      },
-    }
-
-    if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
-      config.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE]
-    }
-
-    return config
+    return getCameraStream()
   }
 
   function profileInitials(name) {
@@ -378,15 +399,15 @@
     isPackageTariff,
     playBeep,
     playRideDong,
+    preloadRideSounds,
     escapeHtml,
     profileInitials,
     AVATAR_COLOR_OPTIONS,
     cameraErrorMessage,
     isCameraSupported,
     getCameraStream,
-    pickBackCameraId,
-    resolveBackCameraDeviceId,
-    buildQrCameraCandidates,
-    getQrScannerConfig,
+    reserveCameraStreamOnGesture,
+    releasePendingCameraStream,
+    getCameraStreamForScan,
   }
 })(window)

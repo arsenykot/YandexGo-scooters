@@ -5,9 +5,9 @@
   const {
     ZONE, COPY, formatTimer, formatFreeWait, formatCost, formatDate, formatDateTime, tariffLabel,
     parseScooterNumberFromQr, walkMinutesFromCenter, batteryTone,
-    isRented, isPackageTariff, playBeep, playRideDong, escapeHtml, profileInitials, AVATAR_COLOR_OPTIONS,
+    isRented, isPackageTariff, playBeep, playRideDong, preloadRideSounds, escapeHtml, profileInitials, AVATAR_COLOR_OPTIONS,
     cameraErrorMessage, isCameraSupported,
-    getCameraStream, pickBackCameraId, resolveBackCameraDeviceId, buildQrCameraCandidates, getQrScannerConfig,
+    getCameraStream, reserveCameraStreamOnGesture, releasePendingCameraStream, getCameraStreamForScan,
   } = window.utils
 
   const LOGO = 'assets/YandexGoLogo.png'
@@ -43,7 +43,7 @@
     purchaseReceipt: null,
     scooterTariff: {},
     confirmModal: null,
-    pendingRideFeedback: null,
+    pendingRideVisualCue: null,
     qrScanner: null,
     cameraStream: null,
     qrTorchOn: false,
@@ -340,7 +340,7 @@
     'status-banner--cue-finish',
   ]
 
-  function rideActionFeedback(kind) {
+  function rideActionSound(kind) {
     playRideDong(kind)
     if (navigator.vibrate) {
       if (kind === 'unlock') navigator.vibrate([10, 35, 12])
@@ -349,6 +349,9 @@
       else if (kind === 'start') navigator.vibrate([14, 45, 18])
       else if (kind === 'finish') navigator.vibrate([20, 50, 16])
     }
+  }
+
+  function rideActionVisualCue(kind) {
     requestAnimationFrame(() => {
       const cueClass = `status-banner--cue-${kind}`
       const targets = [
@@ -364,6 +367,11 @@
         window.setTimeout(() => el.classList.remove(cueClass), 650)
       }
     })
+  }
+
+  function rideActionFeedback(kind) {
+    rideActionSound(kind)
+    rideActionVisualCue(kind)
   }
 
   function historyEntryHtml(entry) {
@@ -1086,6 +1094,7 @@
               <div class="qr-frame" aria-hidden="true"></div>
             </div>
             <p id="qr-error" class="qr-error" hidden></p>
+            <button type="button" id="qr-start-btn" class="qr-enter-btn qr-enter-btn--prominent" data-action="start-qr-camera" hidden>Allow camera</button>
             <div class="qr-controls">
               <button type="button" class="qr-enter-btn qr-enter-btn--prominent" data-action="show-manual">Enter number manually</button>
               <button type="button" class="qr-round-btn" data-action="toggle-qr-torch" aria-label="Flashlight" aria-pressed="false">${ICONS.flashlight}</button>
@@ -1210,7 +1219,8 @@
     })
   }
 
-  async function cleanupPageResources() {
+  async function cleanupPageResources(options = {}) {
+    const nextPage = options.nextPage
     state.qrInitToken += 1
     state.qrScanHandled = false
     state.qrTorchOn = false
@@ -1219,12 +1229,7 @@
     state.qrScanner = null
     if (scanner) {
       try {
-        await scanner.stop()
-      } catch {
-        // scanner may already be stopped or DOM removed
-      }
-      try {
-        scanner.clear()
+        scanner.stop()
       } catch {
         // ignore cleanup errors
       }
@@ -1235,12 +1240,24 @@
       state.cameraStream = null
     }
 
+    if (nextPage !== 'scan' && nextPage !== 'finish-photo') releasePendingCameraStream()
     stopAllVideoElements()
+  }
+
+  async function waitForQrReaderReady() {
+    const reader = document.getElementById('qr-reader')
+    if (!reader) return false
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const { width, height } = reader.getBoundingClientRect()
+      if (width >= 120 && height >= 120) return true
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    }
+    const { width, height } = reader.getBoundingClientRect()
+    return width > 0 && height > 0
   }
 
   async function initQrScanner() {
     const initToken = state.qrInitToken
-    await new Promise((resolve) => setTimeout(resolve, 100))
     if (initToken !== state.qrInitToken) return
     if (parseRoute().page !== 'scan') return
 
@@ -1250,69 +1267,59 @@
         errEl.textContent = message
         errEl.hidden = false
       }
+      const startBtn = document.getElementById('qr-start-btn')
+      if (startBtn) startBtn.hidden = false
     }
 
-    if (typeof Html5Qrcode === 'undefined') {
-      showError('QR library failed to load. Enter number manually.')
+    if (!window.qrScanner || typeof window.qrScanner.createLiveQrScanner !== 'function') {
+      showError('QR scanner failed to load. Enter number manually.')
       return
     }
 
     if (!isCameraSupported()) {
-      showError('Camera needs HTTPS or localhost. Use http://127.0.0.1:8000 on this device, or enter the number manually.')
+      showError('Camera needs HTTPS or localhost. Use http://127.0.0.1:8080 on this device, or enter the number manually.')
       return
     }
 
-    if (!document.getElementById('qr-reader')) return
+    const container = document.getElementById('qr-reader')
+    if (!container) return
+    if (!(await waitForQrReaderReady())) {
+      showError('Scanner view is not ready. Reload the page or enter the number manually.')
+      return
+    }
 
-    const scanner = new Html5Qrcode('qr-reader', { verbose: false })
-    state.qrScanner = scanner
     state.qrScanHandled = false
     state.qrTorchOn = false
 
-    const config = getQrScannerConfig()
-
-    const onScan = async (decoded) => {
+    const onDecode = async (num) => {
       if (state.qrScanHandled) return
-      const num = parseScooterNumberFromQr(decoded)
-      if (!num) return
       state.qrScanHandled = true
       await cleanupPageResources()
       openScooter(num)
     }
 
-    try {
-      if (initToken !== state.qrInitToken || parseRoute().page !== 'scan') {
-        await cleanupPageResources()
-        return
-      }
+    const controller = await window.qrScanner.createLiveQrScanner({
+      container,
+      onDecode,
+      onError: (err) => {
+        if (initToken !== state.qrInitToken) return
+        state.qrScanner = null
+        showError(cameraErrorMessage(err))
+        stopAllVideoElements()
+      },
+    })
 
-      const candidates = await buildQrCameraCandidates(() => Html5Qrcode.getCameras())
-      if (initToken !== state.qrInitToken || parseRoute().page !== 'scan') {
-        await cleanupPageResources()
-        return
-      }
-
-      let started = false
-      let lastError = null
-      for (const camera of candidates) {
-        try {
-          await scanner.start(camera, config, onScan, () => {})
-          started = true
-          break
-        } catch (e) {
-          lastError = e
-        }
-      }
-
-      if (!started) {
-        throw lastError || new Error('Could not start camera')
-      }
-    } catch (e) {
-      if (initToken !== state.qrInitToken) return
-      state.qrScanner = null
-      showError(cameraErrorMessage(e))
-      stopAllVideoElements()
+    if (initToken !== state.qrInitToken || parseRoute().page !== 'scan') {
+      controller.stop()
+      return
     }
+    if (!controller.getVideoTrack || !controller.getVideoTrack()) return
+
+    const startBtn = document.getElementById('qr-start-btn')
+    if (startBtn) startBtn.hidden = true
+    if (errEl) errEl.hidden = true
+
+    state.qrScanner = controller
   }
 
   async function toggleQrTorch() {
@@ -1320,16 +1327,19 @@
     if (!scanner) return
 
     try {
-      const caps = scanner.getRunningTrackCameraCapabilities()
-      if (!caps || !caps.torch) {
+      const track = scanner.getVideoTrack && scanner.getVideoTrack()
+      if (!track) {
+        showToast('Flash not available on this device')
+        return
+      }
+      const caps = track.getCapabilities ? track.getCapabilities() : {}
+      if (!caps.torch) {
         showToast('Flash not available on this device')
         return
       }
 
       state.qrTorchOn = !state.qrTorchOn
-      await scanner.applyVideoConstraints({
-        advanced: [{ torch: state.qrTorchOn }],
-      })
+      await track.applyConstraints({ advanced: [{ torch: state.qrTorchOn }] })
 
       const btn = document.querySelector('[data-action="toggle-qr-torch"]')
       if (btn) {
@@ -1354,7 +1364,7 @@
     }
 
     try {
-      const stream = await getCameraStream()
+      const stream = await getCameraStreamForScan()
       if (parseRoute().page !== 'finish-photo') {
         stream.getTracks().forEach((track) => track.stop())
         return
@@ -1550,12 +1560,12 @@
   async function render() {
     const epoch = state.renderEpoch + 1
     state.renderEpoch = epoch
+    const { page, param } = parseRoute()
 
-    await cleanupPageResources()
+    await cleanupPageResources({ nextPage: page })
     if (epoch !== state.renderEpoch) return
 
     refreshState()
-    const { page, param } = parseRoute()
     const root = document.getElementById('app')
     let html = ''
     let dockFooter = ''
@@ -1582,10 +1592,10 @@
       if (window.sheet) window.sheet.initBottomSheetsDeferred()
     }
 
-    if (state.pendingRideFeedback) {
-      const kind = state.pendingRideFeedback
-      state.pendingRideFeedback = null
-      rideActionFeedback(kind)
+    if (state.pendingRideVisualCue) {
+      const kind = state.pendingRideVisualCue
+      state.pendingRideVisualCue = null
+      rideActionVisualCue(kind)
     }
   }
 
@@ -1636,7 +1646,14 @@
     const action = btn.dataset.action
     const number = btn.dataset.number
 
+    if (action === 'start-qr-camera') {
+      reserveCameraStreamOnGesture()
+      void cleanupPageResources({ nextPage: 'scan' }).then(() => initQrScanner())
+      return
+    }
     if (action === 'navigate') {
+      if (btn.dataset.path === 'scan') reserveCameraStreamOnGesture()
+      preloadRideSounds()
       navigate(btn.dataset.path)
       return
     }
@@ -1694,25 +1711,32 @@
     }
     if (action === 'start') {
       try {
+        preloadRideSounds()
         apiCall(() => store.start(number))
+        rideActionSound('start')
+        state.pendingRideVisualCue = 'start'
         refreshState()
-        void render().then(() => rideActionFeedback('start'))
+        void render()
       } catch (err) { showToast(err.message) }
       return
     }
     if (action === 'pause') {
       try {
         apiCall(() => store.pause(number))
+        rideActionSound('pause')
+        state.pendingRideVisualCue = 'pause'
         refreshState()
-        void render().then(() => rideActionFeedback('pause'))
+        void render()
       } catch (err) { showToast(err.message) }
       return
     }
     if (action === 'resume') {
       try {
         apiCall(() => store.resume(number))
+        rideActionSound('resume')
+        state.pendingRideVisualCue = 'resume'
         refreshState()
-        void render().then(() => rideActionFeedback('resume'))
+        void render()
       } catch (err) { showToast(err.message) }
       return
     }
@@ -1745,9 +1769,11 @@
     }
     if (action === 'finish') {
       state.confirmModal = null
+      reserveCameraStreamOnGesture()
       try {
         apiCall(() => store.finish(number))
-        state.pendingRideFeedback = 'finish'
+        rideActionSound('finish')
+        state.pendingRideVisualCue = 'finish'
         navigate(`finish-photo/${number}`)
       } catch (err) { showToast(err.message); render() }
       return
@@ -1783,7 +1809,8 @@
       try {
         const result = apiCall(() => store.complete(number))
         state.completedRide = result
-        state.pendingRideFeedback = 'finish'
+        rideActionSound('finish')
+        state.pendingRideVisualCue = 'finish'
         navigate('')
       } catch (err) {
         showToast(err.message)
@@ -1929,4 +1956,7 @@
   render()
   initViewportSync()
   startTick()
+
+  window.addEventListener('pointerdown', () => { preloadRideSounds() }, { once: true, passive: true })
+  preloadRideSounds()
 })()

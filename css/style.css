@@ -2058,6 +2058,7 @@ a {
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
+  min-height: 0;
 }
 
 .qr-hint {
@@ -2083,7 +2084,7 @@ a {
 .qr-viewport {
   flex: 1;
   position: relative;
-  min-height: 280px;
+  min-height: min(52vh, 420px);
 }
 
 .qr-reader {
@@ -2092,13 +2093,10 @@ a {
   min-height: 240px;
 }
 
-.qr-reader > div,
-.qr-reader video {
+.qr-reader video,
+.qr-live-video {
   width: 100% !important;
   height: 100% !important;
-}
-
-.qr-reader video {
   object-fit: cover !important;
   border: none !important;
 }
